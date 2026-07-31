@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ArrowLeft, Check, LoaderCircle, ShieldCheck, Truck } from "lucide-react";
 import { DELIVERY_CHARGE, PRODUCT_PRICE, submitOrder, type OrderPayload } from "../../lib/order";
@@ -11,9 +11,8 @@ const provinces = ["Koshi", "Madhesh", "Bagmati", "Gandaki", "Lumbini", "Karnali
 const initial: OrderPayload = { customerName: "", mobile: "", province: "", district: "", municipality: "", area: "", address: "", landmark: "", quantity: 1, orderNote: "" };
 
 export default function Checkout() {
-  const router = useRouter(); const searchParams = useSearchParams();
-  const initialQuantity = Number(searchParams.get("quantity"));
-  const [form, setForm] = useState<OrderPayload>({ ...initial, quantity: initialQuantity > 0 ? initialQuantity : 1 }); const [errors, setErrors] = useState<Record<string, string>>({}); const [loading, setLoading] = useState(false); const [submitError, setSubmitError] = useState("");
+  const router = useRouter();
+  const [form, setForm] = useState<OrderPayload>(() => { const quantity = typeof window === "undefined" ? 1 : Number(new URLSearchParams(window.location.search).get("quantity")); return { ...initial, quantity: quantity > 0 ? quantity : 1 }; }); const [errors, setErrors] = useState<Record<string, string>>({}); const [loading, setLoading] = useState(false); const [submitError, setSubmitError] = useState("");
   const update = (key: keyof OrderPayload, value: string | number) => { setForm((f) => ({ ...f, [key]: value })); setErrors((e) => ({ ...e, [key]: "" })); };
   const validate = () => { const e: Record<string, string> = {}; if (!form.customerName.trim()) e.customerName = "Please enter your full name."; if (!/^9[678]\d{8}$/.test(form.mobile.replace(/\D/g, ""))) e.mobile = "Enter a valid 10-digit Nepal mobile number."; ["province", "district", "municipality", "address"].forEach((k) => { if (!String(form[k as keyof OrderPayload]).trim()) e[k] = "This field is required."; }); if (form.quantity < 1) e.quantity = "Choose at least 1 pack."; setErrors(e); return Object.keys(e).length === 0; };
   async function onSubmit(event: FormEvent) { event.preventDefault(); setSubmitError(""); if (!validate()) return; setLoading(true); try { const result = await submitOrder(form); sessionStorage.setItem("melt-order", JSON.stringify({ ...form, ...result, total: form.quantity * PRODUCT_PRICE + DELIVERY_CHARGE })); router.push(`/thank-you?orderId=${result.orderId}`); } catch (error) { setSubmitError(error instanceof Error ? error.message : "Something went wrong. Please try again."); setLoading(false); } }
